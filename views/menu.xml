@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id='action_daily_report_management' model='ir.actions.act_window'>
+        <field name="name">Daily Report</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">daily.report.management</field>
+        <field name="view_mode">tree,form,graph</field>
+        <field name="domain">[('state', 'not in', ['approved'])]
+        </field>
+    </record>
+
+    <record id="hr_work_entry_action_inherit_for_daily_report" model="ir.actions.act_window">
+        <field name="name">Work Entry</field>
+        <field name="res_model">hr.work.entry</field>
+        <field name="view_mode">calendar,tree</field>
+        <field name="context">{
+            'search_default_work_entries_error': True
+            }
+        </field>
+        <field name="view_ids" eval="[(5, 0, 0),
+                (0, 0, {'view_mode': 'calendar', 'view_id': ref('hr_work_entry.hr_work_entry_view_calendar')})]"/>
+    </record>
+
+    <record id="hr_leave_action_my_inherit_for_daily_report" model="ir.actions.act_window">
+        <field name="name">My Time Off</field>
+        <field name="res_model">hr.leave</field>
+        <field name="view_mode">tree,calendar</field>
+        <field name="context">{}</field>
+        <field name="search_view_id" ref="hr_holidays.hr_leave_view_search_my"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+                (0, 0, {'view_mode': 'calendar', 'view_id': ref('hr_holidays.hr_leave_view_dashboard')})]"/>
+        <field name="domain">[('user_id', '=', uid)]</field>
+    </record>
+
+    <record id="open_view_project_all_group_stage_inherit" model="ir.actions.act_window">
+        <field name="name">Projects</field>
+        <field name="res_model">project.project</field>
+        <field name="context">{}</field>
+        <field name="domain">[]</field>
+        <field name="view_mode">kanban,form,tree</field>
+        <field name="view_id" ref="project.project_kanban_view_group_stage"/>
+        <field name="search_view_id" ref="project.view_project_project_filter"/>
+        <field name="target">main</field>
+    </record>
+
+    <record id="mrp_production_action_inherit" model="ir.actions.act_window">
+        <field name="name">Manufacturing Orders</field>
+        <field name="res_model">mrp.production</field>
+        <field name="view_mode">kanban,form,tree</field>
+        <field name="context">{'search_default_status': True, 'search_default_todo': True, 'default_company_id':
+            allowed_company_ids[0]}
+        </field>
+        <field name="domain">[('picking_type_id.active', '=', True)]</field>
+    </record>
+
+    <record id="hr_leave_action_action_approve_department_inherit" model="ir.actions.act_window">
+        <field name="name">Pending Time Off</field>
+        <field name="res_model">hr.leave</field>
+        <field name="view_mode">tree,kanban,form,calendar,activity</field>
+        <field name="search_view_id" ref="hr_holidays.hr_leave_view_search_manager"/>
+        <field name="context">{
+            'search_default_waiting_for_me': 1,
+            'search_default_waiting_for_me_manager': 2,
+            'hide_employee_name': 1,
+            'holiday_status_display_name': False}
+        </field>
+        <field name="domain">['|', ('employee_id.company_id', 'in', allowed_company_ids),
+            '&amp;', ('multi_employee', '=', True),
+            '&amp;', ('state', 'in', ['draft', 'confirm', 'validate1']),
+            ('employee_ids.company_id', 'in', allowed_company_ids)]
+        </field>
+    </record>
+
+    <record id="action_pending_daily_report_management" model="ir.actions.act_window">
+        <field name="name">Pending Daily</field>
+        <field name="res_model">daily.report.management</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="daily_report_management_search_view"/>
+        <field name="context">{
+            'search_default_waiting_for_review': 1}
+        </field>
+    </record>
+
+    <record id="action_daily_dashboard" model="ir.actions.client">
+        <field name="name">Daily Report Dashboard</field>
+        <field name="tag">owl.daily_report_dashboard</field>
+    </record>
+    <!-- Menus -->
+
+    <menuitem id="menu_daily_report_management_root"
+              name="Daily Report"
+              web_icon="daily_report_management,static/description/icon.png"
+              action="action_daily_report_management"
+              sequence="90"/>
+
+    <!-- Personal Menu -->
+
+    <menuitem id="menu_my_activities"
+              name="My Activities"
+              parent="menu_daily_report_management_root"
+              action="action_daily_report_management"
+              sequence="0"/>
+
+    <menuitem id="menu_daily_reports"
+              name="Daily Reports"
+              parent="menu_my_activities"
+              action="action_daily_report_management"
+              sequence="1"/>
+
+    <menuitem id="menu_leave_requests"
+              name="Leave Requests"
+              parent="menu_my_activities"
+              action="hr_leave_action_my_inherit_for_daily_report"
+              sequence="4"/>
+
+    <menuitem id="menu_projects"
+              name="Projects"
+              parent="menu_my_activities"
+              action="open_view_project_all_group_stage_inherit"
+              sequence="7"/>
+
+    <menuitem id="menu_manufacturing_order"
+              name="Manufacturing Orders"
+              parent="menu_my_activities"
+              action="mrp_production_action_inherit"
+              sequence="10"/>
+
+    <!-- Admin Menu -->
+
+    <menuitem id="menu_approval_management"
+              name="Approval Management"
+              parent="menu_daily_report_management_root"
+              groups="group_daily_report_manager"
+              sequence="3"/>
+
+    <menuitem id="menu_pending_daily"
+              name="Pending Daily"
+              parent="menu_approval_management"
+              action="action_pending_daily_report_management"
+              groups="group_daily_report_manager"
+              sequence="1"/>
+
+    <menuitem id="menu_pending_time_off"
+              name="Pending Time Off"
+              parent="menu_approval_management"
+              action="hr_leave_action_action_approve_department_inherit"
+              groups="group_daily_report_manager"
+              sequence="3"/>
+
+    <menuitem id="menu_work_entries"
+              name="Work Entries"
+              parent="menu_approval_management"
+              action="hr_work_entry_action_inherit_for_daily_report"
+              sequence="6"/>
+
+    <menuitem id="menu_daily_dashboard"
+              name="Dashboard"
+              parent="menu_daily_report_management_root"
+              action="action_daily_dashboard"
+              sequence="3"/>
+
+</odoo>

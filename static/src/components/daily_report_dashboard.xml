@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="owl.OwlDailyReportComponents" owl="1">
+        <div class="vh-100 overflow-auto bg-muted">
+            <div class="row m-3">
+                <div class="col-lg-7">
+                    <div class="row">
+                        <div class="col m-0 p-0">
+                            <div class="shadow-sm border m-2 p-4 bg-white">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h1 class="text-primary fw-bold">Daily Report Dashboard</h1>
+                                    <div>
+                                        <select class="form-select" id="employeeSelect" t-on-change="onEmployeeChange">
+                                            <option value="0">Select Employee</option>
+                                            <t t-foreach="state.employees" t-as="employee" t-key="employee.id">
+                                                <option t-att-value="employee.id" t-esc="employee.name"/>
+                                            </t>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <KpiCard onClick.bind="viewProjects" name="'Projects'" value="state.project.value" percentage="state.project.percentage" explanation="state.project.explanation"/>
+                        <KpiCard onClick.bind="viewWaitingApproval" name="'Waiting Approve'" value="state.waiting_approve.count" percentage="''" explanation="state.waiting_approve.explanation"/>
+                        <KpiCard onClick.bind="viewApproved" name="'Approved'" value="state.approved.count" percentage="''" explanation="state.approved.explanation"/>
+                        <KpiCard onClick.bind="viewApproved" name="'????'" value="''" percentage="''"/>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-6 m-0 p-0">
+                            <div class="shadow-sm border m-2 p-4 bg-white">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h3 class="text-primary fw-bold">Employee Radar Chart</h3>
+                                </div>
+                                <RadarChartRenderer type="'radar'" title="'Employee Radar Chart'" config="state.prepareRadarChartData"/>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 m-0 p-0">
+                            <div class="shadow-sm border m-2 p-4 bg-white">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h3 class="text-primary fw-bold">Time Spent on Projects</h3>
+                                </div>
+                                <PolarAreaChartRenderer type="'polarArea'" title="'Time Spent on Projects'" config="state.loadPolarAreaChartData" employee_id="state.employeeId"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="row">
+                        <div class="col m-0 p-0">
+                            <div class="shadow-sm border m-2 p-4 bg-white">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h3 class="text-primary fw-bold">Deadlines and Work Hours</h3>
+                                </div>
+                                <BarChartRenderer type="'line'" title="'Deadlines and Work Hours'" config="state.loadProjectData"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col m-0 p-0">
+                            <div class="shadow-sm border m-2 p-4 bg-white">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h3 class="text-primary fw-bold">Partner Daily</h3>
+                                </div>
+                                <Table/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

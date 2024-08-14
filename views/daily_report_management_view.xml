@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="daily_report_management_tree_view" model="ir.ui.view">
+        <field name="name">daily.report.management.tree</field>
+        <field name="model">daily.report.management</field>
+        <field name="arch" type="xml">
+            <tree sample="1">
+                <field name="daily_report_reference"/>
+                <field name="employee_id"/>
+                <field name="report_date"/>
+                <field decoration-danger="work_status == 'off_work'"
+                       decoration-success="work_status == 'worked_full_time'"
+                       decoration-warning="work_status == 'half_day_off'" name="work_status" optional="show"
+                       widget="badge"/>
+                <field decoration-info="state == 'waiting_for_review'" decoration-success="state == 'approved'"
+                       name="state" optional="show" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="daily_report_management_search_view" model="ir.ui.view">
+        <field name="name">daily.report.management.search</field>
+        <field name="model">daily.report.management</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="state"/>
+                <filter name="waiting_for_review" string="Pending Daily"
+                        domain="[('state', '=', 'waiting_for_review')]"/>
+                <filter name="approved" string="Approved"
+                        domain="[('state', '=', 'approved')]"/>
+                <group name="groupby" string="Group By">
+                    <filter context="{'group_by': 'employee_id'}" name="employee_group_by" string="Employee"/>
+                    <filter context="{'group_by': 'report_date'}" name="date_group_by" string="Date"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_daily_report_management_graph" model="ir.ui.view">
+        <field name="name">daily.report.management.graph</field>
+        <field name="model">daily.report.management</field>
+        <field name="arch" type="xml">
+            <graph string="Daily Report" sample="1">
+                <field name="state"/>
+                <field name="employee_id"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="daily_report_management_form_view" model="ir.ui.view">
+        <field name="name">daily.report.management.form</field>
+        <field name="model">daily.report.management</field>
+        <field name="type">form</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button confirm="Are you sure you want to convert to draft??" invisible="state in 'draft'"
+                            name="action_convert_to_draft" string="Convert Draft" type="object"/>
+                    <button class="btn btn-primary" invisible="state not in 'draft'" name="action_send_for_review"
+                            string="Send for Review" type="object"/>
+                    <button class="btn btn-success" invisible="state not in 'waiting_for_review'"
+                            name="action_send_for_approved" string="Approve" type="object"/>
+                    <button class="btn btn-primary" invisible="work_status in 'worked_full_time'"
+                            name="action_time_off_create" string="Request Time off" type="object"/>
+                    <button class="btn btn-primary" invisible="work_status not in 'worked_full_time'"
+                            name="action_work_entry_create" string="Add Overtime" type="object"/>
+                    <field name="state" string="State" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" icon="fa-gavel" name="open_work_orders" string="Work Orders"
+                                type="object"/>
+                        <button class="oe_stat_button" icon="fa-clock-o" name="open_timesheets" string="Timesheets"
+                                type="object"/>
+                    </div>
+                    <div class="oe_title">
+                        <h3>
+                            <p>
+                                Reference:
+                                <field name="daily_report_reference" string="Reference:"/>
+                            </p>
+                        </h3>
+                    </div>
+                    <div style="display:flex; flex-wrap: wrap; gap: 15px;">
+                        <div class="oe_title" width="50%">
+                            <p>
+                                Employee:
+                                <field name="employee_id" string="Employee:" readonly="state != 'draft'"/>
+                                <field name="user_id" string="User" invisible="1"/>
+                            </p>
+                        </div>
+                        <div class="oe_title" width="50%">
+                            <p>
+                                Work Status:
+                                <field name="work_status" string="Work Status:"/>
+                            </p>
+                        </div>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="report_date" string="Report Date:" readonly="state != 'draft'"/>
+                            <field name="analytic_account_ids" string="Analytic Accounts" widget="many2many_tags"/>
+                            <field domain="[('analytic_account_id', 'in', analytic_account_ids)]" name="project_ids"
+                                   string="Projects" widget="many2many_tags"/>
+                        </group>
+                        <group>
+                            <field domain="[('analytic_account_ids', 'in', analytic_account_ids),('state', 'in', ('draft', 'confirmed', 'progress'))]"
+                                   name="manufacturing_order_ids" string="Manufacturing Orders"
+                                   widget="many2many_tags"/>
+                            <field domain="[('production_id', 'in', manufacturing_order_ids),('state', 'not in', ('done', 'cancel'))]"
+                                   invisible="1" name="work_order_ids" string="Work Orders" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Report Line">
+                            <field name="daily_report_management_line_ids">
+                                <tree editable="bottom">
+                                    <field name="daily_report_management_id" column_invisible="True"/>
+                                    <field name="project_ids" column_invisible="True"/>
+                                    <field name="production_id" readonly="line_type == 'project_task'"/>
+                                    <field name="operation_name"/>
+                                    <field name="operation_date"/>
+                                    <field name="project_id" domain="[('id', 'in', project_ids)]"/>
+                                    <field name="task_id" domain="[('project_id', '=', project_id)]"  context="{'default_project_id': project_id}"/>
+                                    <field name="state" widget="project_task_state_selection" options="{'is_toggle_mode': false}"/>
+                                    <field name="work_center_id"/>
+                                    <field name="work_order_id" optional="hide"/>
+                                    <field name="product_id" optional="hide"/>
+                                    <field name="duration_expected"/>
+                                    <field name="duration_spent"/>
+                                    <field name="duration"/>
+                                    <field name="line_type"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="mrp_production_workorder_tree_daily_view" model="ir.ui.view">
+        <field name="name">mrp.production.work.order.tree.daily</field>
+        <field name="model">mrp.workorder</field>
+        <field eval="100" name="priority"/>
+        <field name="arch" type="xml">
+            <tree create="0" delete="0" editable="bottom" multi_edit="1">
+            </tree>
+        </field>
+    </record>
+
+</odoo>
