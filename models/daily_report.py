@@ -1,4 +1,4 @@
-# Copyright 2024 Akkurt Volkan, Patrion
+# Copyright 2024 Akkurt Volkan
 # License AGPL-3.0.
 
 from odoo import api, fields, models, _
@@ -383,6 +383,7 @@ class DailyReportManagement(models.Model):
         table_data = []
         for project in active_projects:
 
+            spent_hours = sum(project.timesheet_ids.mapped('unit_amount'))
             open_tasks = self.env['project.task'].search_count(
                 [('project_id', '=', project.id), ('user_ids', '!=', False), ('state', 'not in', ('1_done', '1_canceled'))])
             closed_tasks = self.env['project.task'].search_count(
@@ -403,6 +404,7 @@ class DailyReportManagement(models.Model):
             table_data.append({
                 "name": project.name,
                 "allocated_hours": project.allocated_hours,
+                "spent_hours": spent_hours,
                 "deadline": project.date,
                 "open_tasks": open_tasks,
                 "closed_tasks": closed_tasks,
