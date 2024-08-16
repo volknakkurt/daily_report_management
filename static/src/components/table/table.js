@@ -32,19 +32,20 @@ export class Table extends Component {
             { title: "Project Name", field: "name", frozen: true },
             {
                 title: "Time Info", columns: [
-                    { title: "Allocated Hours", field: "allocated_hours" },
-                    { title: "Deadline", field: "deadline", formatter: "date", formatterParams: { outputFormat: "YYYY/MM/DD" } }
+                    { title: "Allocated Hours", field: "allocated_hours", hozAlign:"center" },
+                    { title: "Spent Hours", field: "spent_hours", hozAlign:"center" },
+                    { title: "Deadline", field: "deadline", hozAlign:"center", formatter: "date", formatterParams: { outputFormat: "YYYY/MM/DD" } }
                 ]
             },
             {
                 title: "Task Info", columns: [
-                    { title: "Open Task", field: "open_tasks" },
-                    { title: "Closed Task", field: "closed_tasks" },
-                    { title: "Success Task", field: "successful_tasks" },
-                    { title: "Overdue Task", field: "unsuccessful_tasks" }
+                    { title: "Open Task", field: "open_tasks", hozAlign:"center" },
+                    { title: "Closed Task", field: "closed_tasks", hozAlign:"center" },
+                    { title: "Success", field: "successful_tasks", hozAlign:"center" },
+                    { title: "Overdue", field: "unsuccessful_tasks", hozAlign:"center" }
                 ]
             },
-            { title: "Production", field: "produced_items" }
+            { title: "Production", field: "produced_items", hozAlign:"center" }
         ];
 
         new Tabulator(this.chartRef.el, {
