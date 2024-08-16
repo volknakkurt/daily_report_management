@@ -90,7 +90,7 @@
 
     <menuitem id="menu_daily_report_management_root"
               name="Daily Report"
-              web_icon="daily_report_management,static/description/icon.png"
+              web_icon="pt_daily_report_management,static/description/icon.png"
               action="action_daily_report_management"
               sequence="90"/>
 

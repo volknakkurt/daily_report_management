@@ -1,4 +1,4 @@
-# Copyright 2024 Akkurt Volkan
+# Copyright 2024 Akkurt Volkan, Patrion
 # License AGPL-3.0.
 
 from odoo import api, fields, models, _
@@ -10,22 +10,25 @@ class DailyReportManagement(models.Model):
     _rec_name = 'daily_report_reference'
 
     daily_report_reference = fields.Char(string="Reference", compute="_compute_daily_report_reference")
-    user_id = fields.Many2one('res.users', string='User',
-                              default=lambda self: self.env.context.get('user_id', self.env.user.id),
-                              index=True)
-    employee_id = fields.Many2one('hr.employee', string='Employee')
+
+    employee_id = fields.Many2one('res.users', 'Employee', required=True, default=lambda self: self.env.user,
+                                  index=True,
+                                  ondelete='cascade')
     report_date = fields.Date(default=fields.Date.context_today, string="Report Date")
 
-    daily_report_management_line_ids = fields.One2many('daily.report.management.line', 'daily_report_management_id',
-                                                       string="Daily Report Line")
+    project_line_ids = fields.One2many('project.line', 'daily_report_management_id',
+                                       string="Project Line")
+    manufacturing_line_ids = fields.One2many('manufacturing.line', 'daily_report_management_id',
+                                             string="Manufacturing Line")
     analytic_account_ids = fields.Many2many('account.analytic.account', string="Analytic Accounts")
-    project_ids = fields.Many2many('project.project', string="Projects")
+    project_ids = fields.Many2many('project.project', string="Projects", compute='_compute_project_ids', store=True)
     manufacturing_order_ids = fields.Many2many('mrp.production', string="Manufacturing Orders")
     work_order_ids = fields.Many2many('mrp.workorder', string="Work Orders")
 
     time_ids = fields.Many2many('mrp.workcenter.productivity', string="Time Logs")
     project_task_ids = fields.Many2many('project.task', string="Project Tasks")
     timesheets_ids = fields.Many2many('account.analytic.line', string="Timesheets")
+    notes = fields.Html('Notes')
 
     state = fields.Selection([
         ('draft', 'Draft'),
@@ -65,48 +68,59 @@ class DailyReportManagement(models.Model):
             'target': 'current',
         }
 
-    @api.onchange('analytic_account_ids')
+    @api.depends('analytic_account_ids')
+    def _compute_project_ids(self):
+        for rec in self:
+            projects = self.env['project.project'].search([
+                ('analytic_account_id', 'in', rec.analytic_account_ids.ids)
+            ])
+            rec.project_ids = projects
+
+    @api.onchange('project_ids')
     def _onchange_project_ids(self):
         for rec in self:
-            if rec.analytic_account_ids:
-                project_ids = self.env['project.project'].search([
-                    ('analytic_account_id', 'in', rec.analytic_account_ids.ids)
-                ])
-                rec.project_ids = [(6, 0, project_ids.ids)]
-            else:
-                rec.project_ids = [(5, 0, 0)]
+            tasks = self.env['project.task'].search([
+                ('project_id', 'in', rec.project_ids.ids),
+                ('user_ids', '=', rec.employee_id.id),
+                ('stage_id', 'not in', ['1_done', '1_cancelled'])
+            ])
 
-    @api.onchange('user_id')
-    def _onchange_employee_id(self):
-        for rec in self:
-            if rec.user_id.employee_id:
-                rec.employee_id = rec.user_id.employee_id
-            else:
-                rec.employee_id = False
+            lines = []
+            for task in tasks:
+                line = self.env['project.line'].create({
+                    'operation_name': task.name,
+                    'operation_date': fields.Date.today(),
+                    'project_id': task.project_id.id,
+                    'task_id': task.id,
+                    'state': task.state,
+                    'date_deadline': task.date_deadline,
+                    'duration_expected': task.allocated_hours,
+                    'duration_spent': task.effective_hours,
+                    'line_type': 'project_task',
+                })
+                lines.append(line.id)
+
+            rec.project_line_ids = [(6, 0, lines)]
 
     @api.onchange('manufacturing_order_ids')
     def _onchange_manufacturing_order_ids(self):
         for rec in self:
-            if rec.manufacturing_order_ids:
-                manufacturing_order_ids = rec.manufacturing_order_ids
-                report_lines_data = [fields.Command.clear()]
-                for mo in manufacturing_order_ids:
-                    report_lines_data += [
-                        fields.Command.create({
-                            'production_id': wo.production_id.id,
-                            'operation_name': wo.name,
-                            'work_order_id': wo.id,
-                            'work_center_id': wo.workcenter_id.id,
-                            'product_id': wo.product_id.id,
-                            'duration_expected': wo.duration_expected,
-                            'duration_spent': wo.duration,
-                            'line_type': 'work_order',
-                        })
-                        for wo in mo.workorder_ids
-                    ]
-                    rec.daily_report_management_line_ids = report_lines_data
-            else:
-                rec.daily_report_management_line_ids = [fields.Command.clear()]
+            lines = []
+            for mo in rec.manufacturing_order_ids:
+                for wo in mo.workorder_ids:
+                    line = self.env['manufacturing.line'].create({
+                        'production_id': mo.id,
+                        'operation_name': wo.name,
+                        'state': wo.state,
+                        'work_order_id': wo.id,
+                        'work_center_id': wo.workcenter_id.id,
+                        'product_id': wo.product_id.id,
+                        'duration_expected': wo.duration_expected,
+                        'duration_spent': wo.duration,
+                        'line_type': 'work_order',
+                    })
+                    lines.append(line.id)
+            rec.manufacturing_line_ids = [(6, 0, lines)]
 
     @api.depends('employee_id')
     def _compute_daily_report_reference(self):
@@ -115,22 +129,6 @@ class DailyReportManagement(models.Model):
                 rec.daily_report_reference = str(rec.employee_id.name) + ' Daily Report'
             else:
                 rec.daily_report_reference = 'Daily Report'
-
-    @api.onchange('manufacturing_order_ids')
-    def _onchange_time_ids(self):
-        for rec in self:
-            if rec.manufacturing_order_ids:
-                rec.write({"time_ids": [(6, 0, self.work_order_ids.time_ids.ids)]})
-            else:
-                rec.time_ids = [(5,)]
-
-    @api.onchange('manufacturing_order_ids')
-    def _onchange_work_order_ids(self):
-        for rec in self:
-            if rec.manufacturing_order_ids:
-                rec.write({"work_order_ids": [(6, 0, self.manufacturing_order_ids.workorder_ids.ids)]})
-            else:
-                rec.work_order_ids = [(5,)]
 
     def action_time_off_create(self):
         view_id = self.env.ref('hr_holidays.hr_leave_view_form_manager').id
@@ -179,11 +177,10 @@ class DailyReportManagement(models.Model):
         self.state = 'waiting_for_review'
 
     def action_send_for_approved(self):
-        for rec in self.daily_report_management_line_ids:
-            if rec.production_id:
-                rec.action_create_productivity()
-            if rec.project_id:
-                rec.action_create_timesheet()
+        for rec in self.project_line_ids:
+            rec.action_create_timesheet()
+        for rec in self.manufacturing_line_ids:
+            rec.action_create_productivity()
         self.state = 'approved'
 
     @api.model
@@ -206,14 +203,14 @@ class DailyReportManagement(models.Model):
 
                 timesheets_duration_last_30_days = sum(
                     line.duration for report in reports_last_30_days for line in
-                    report.daily_report_management_line_ids)
+                    report.project_line_ids)
                 approved_reports_count_last_30_days = len(reports_last_30_days)
                 projects_count_last_30_days = len(
                     set(project.id for report in reports_last_30_days for project in report.project_ids))
                 leaves_count_last_30_days = len(reports_last_30_days.filtered(lambda r: r.work_status == 'off_work'))
 
                 timesheets_duration_all_time = sum(
-                    line.duration for report in reports_all_time for line in report.daily_report_management_line_ids)
+                    line.duration for report in reports_all_time for line in report.project_line_ids)
                 approved_reports_count_all_time = len(reports_all_time)
                 projects_count_all_time = len(
                     set(project.id for report in reports_all_time for project in report.project_ids))
@@ -274,7 +271,7 @@ class DailyReportManagement(models.Model):
 
                     total_timesheets_duration_last_30_days += sum(
                         line.duration for report in reports_last_30_days for line in
-                        report.daily_report_management_line_ids)
+                        report.project_line_ids)
                     total_approved_reports_count_last_30_days += len(reports_last_30_days)
                     total_projects_count_last_30_days.update(
                         project.id for report in reports_last_30_days for project in report.project_ids)
@@ -283,7 +280,7 @@ class DailyReportManagement(models.Model):
 
                     total_timesheets_duration_all_time += sum(
                         line.duration for report in reports_all_time for line in
-                        report.daily_report_management_line_ids)
+                        report.project_line_ids)
                     total_approved_reports_count_all_time += len(reports_all_time)
                     total_projects_count_all_time.update(
                         project.id for report in reports_all_time for project in report.project_ids)
@@ -321,7 +318,8 @@ class DailyReportManagement(models.Model):
         # Collect all unique projects
         for report in reports:
             for project in report.project_ids:
-                project_set.add((project.id, project.name))
+                if not project.stage_id.fold:
+                    project_set.add((project.id, project.name))
 
         Project = self.env['project.project']
         for project_id, project_name in project_set:
@@ -353,14 +351,15 @@ class DailyReportManagement(models.Model):
 
         for report in daily_reports:
             for project in report.project_ids:
-                if project.id not in project_data:
-                    project_data[project.id] = {
-                        'name': project.name,
-                        'spent_hours': sum(project.timesheet_ids.mapped('unit_amount')),
-                        'allocated_hours': project.allocated_hours,
-                    }
-                else:
-                    project_data[project.id]['spent_hours'] += sum(project.timesheet_ids.mapped('unit_amount'))
+                if not project.stage_id.fold:
+                    if project.id not in project_data:
+                        project_data[project.id] = {
+                            'name': project.name,
+                            'spent_hours': sum(project.timesheet_ids.mapped('unit_amount')),
+                            'allocated_hours': project.allocated_hours,
+                        }
+                    else:
+                        project_data[project.id]['spent_hours'] += sum(project.timesheet_ids.mapped('unit_amount'))
 
         data = [
             {'id': pid, 'name': pdata['name'], 'spent_hours': pdata['spent_hours'],
@@ -369,3 +368,47 @@ class DailyReportManagement(models.Model):
         ]
 
         return data
+
+    @api.model
+    def get_project_table_data(self):
+        approved_reports = self.env['daily.report.management'].search([('state', '=', 'approved')])
+        project_ids = set()
+
+        for report in approved_reports:
+            project_ids.update(report.project_ids.ids)
+
+        active_projects = self.env['project.project'].search(
+            [('stage_id.fold', '=', False), ('id', 'in', list(project_ids))])
+
+        table_data = []
+        for project in active_projects:
+
+            open_tasks = self.env['project.task'].search_count(
+                [('project_id', '=', project.id), ('user_ids', '!=', False), ('state', 'not in', ('1_done', '1_canceled'))])
+            closed_tasks = self.env['project.task'].search_count(
+                [('project_id', '=', project.id), ('user_ids', '!=', False), ('state', '=', '1_done')])
+
+            successful_tasks = self.env['project.task'].search_count(
+                [('project_id', '=', project.id), ('user_ids', '!=', False), ('remaining_hours', '<', 0)])
+            unsuccessful_tasks = self.env['project.task'].search_count(
+                [('project_id', '=', project.id), ('user_ids', '!=', False), ('remaining_hours', '>=', 0)])
+            mrp_production_ids = self.env['mrp.production'].search([('analytic_distribution', '!=', False), ('state', '=', 'done')])
+            produced_items = 0
+            for mrp_prod in mrp_production_ids:
+                analytic_account = mrp_prod.analytic_distribution
+                for key in analytic_account.keys():
+                    if int(key) == project.id:
+                        produced_items += 1
+
+            table_data.append({
+                "name": project.name,
+                "allocated_hours": project.allocated_hours,
+                "deadline": project.date,
+                "open_tasks": open_tasks,
+                "closed_tasks": closed_tasks,
+                "successful_tasks": successful_tasks,
+                "unsuccessful_tasks": unsuccessful_tasks,
+                "produced_items": produced_items,
+            })
+
+        return table_data

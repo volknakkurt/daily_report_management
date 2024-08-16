@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access.daily.report.management,access_daily_report_management,model_daily_report_management,base.group_user,1,1,1,1
-access.daily.report.management.line,access_daily_report_management_line,model_daily_report_management_line,base.group_user,1,1,1,1
+access.project.line,access_project_line,model_project_line,base.group_user,1,1,1,1
+access.manufacturing.line,access_manufacturing_line,model_manufacturing_line,base.group_user,1,1,1,1

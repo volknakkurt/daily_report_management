@@ -24,8 +24,8 @@
                     <div class="row">
                         <KpiCard onClick.bind="viewProjects" name="'Projects'" value="state.project.value" percentage="state.project.percentage" explanation="state.project.explanation"/>
                         <KpiCard onClick.bind="viewWaitingApproval" name="'Waiting Approve'" value="state.waiting_approve.count" percentage="''" explanation="state.waiting_approve.explanation"/>
-                        <KpiCard onClick.bind="viewApproved" name="'Approved'" value="state.approved.count" percentage="''" explanation="state.approved.explanation"/>
-                        <KpiCard onClick.bind="viewApproved" name="'????'" value="''" percentage="''"/>
+                        <KpiCard onClick.bind="viewSuccessTasks" name="'Success Tasks'" value="state.tasks.completed" percentage="''" explanation="state.tasks.completed_explanation"/>
+                        <KpiCard onClick.bind="viewOverdueTasks" name="'Overdue Tasks'" value="state.tasks.overdue" percentage="''" explanation="state.tasks.overdue_explanation"/>
                     </div>
                     <div class="row">
                         <div class="col-lg-6 m-0 p-0">
