@@ -190,7 +190,7 @@ class DailyReportManagement(models.Model):
             if employee_id:
                 domain.append(('employee_id', '=', employee_id))
 
-            employees = self.env['hr.employee'].search([])
+            employees = self.env['res.users'].search([])
             data = {}
             for employee in employees:
                 # Get reports for the last 30 days
